@@ -2,6 +2,7 @@ import amqp from 'amqp-connection-manager';
 import { AmqpConnectionManager, ChannelWrapper } from 'amqp-connection-manager';
 import { ConfirmChannel } from 'amqplib';
 import { Options } from 'amqplib';
+import { Subject } from 'rxjs';
 
 // Use a known type for exchange types since amqplib's Options.AssertExchange is a bit verbose
 type ExchangeType = 'topic' | 'fanout' | 'direct' | 'headers';
@@ -11,6 +12,9 @@ export class RabbitMQSetup {
 	private connectionManager: AmqpConnectionManager;
 	private channel: ChannelWrapper;
 	private prefetchCount: number;
+
+	//create a subject observable to listen on it in email consumer
+	public ConnectionCompleted$ = new Subject<boolean>();
 
 	constructor(private url: string | string[]) {
 		this.prefetchCount = parseInt(process.env.RABBITMQ_PREFETCH || '5', 10);
@@ -37,22 +41,44 @@ export class RabbitMQSetup {
 				// Note: amqplib's prefetch is per-channel, so this is per-ChannelWrapper instance
 				await channel.prefetch(this.prefetchCount, false);
 				console.log(
-					`✨ Channel setup complete (prefetch = ${this.prefetchCount})`,
+					`✨ Channel setup complete (channel connection = ${channel.ch}) (prefetch = ${this.prefetchCount})`,
 				);
 			},
 		});
-
 		await this.channel.waitForConnect();
 		console.log(`✅ Initial RabbitMQ Channel is ready.`);
+
+		this.ConnectionCompleted$.next(true);
 	}
 
-	getChannelWrapper(): any {
+	getPublishChannelWrapper(): any {
 		if (!this.channel) {
 			throw new Error(
 				'RabbitMQSetup is not connected. Call connect() first.',
 			);
 		}
 		return this.channel;
+	}
+
+	async createandGetChannelWrapper(
+		consumerName: string,
+		prefetchCount?: number,
+	): Promise<any> {
+		const newChannel = this.connectionManager.createChannel({
+			json: true,
+			confirm: true,
+			setup: async (channel: ConfirmChannel) => {
+				await channel.prefetch(
+					prefetchCount || this.prefetchCount,
+					false,
+				);
+				console.log(
+					`🌀 Channel ${consumerName.toUpperCase()} setup complete channelid = ${channel.ch} (prefetch = ${prefetchCount || this.prefetchCount})`,
+				);
+			},
+		});
+		await newChannel.waitForConnect();
+		return newChannel;
 	}
 
 	// The `setup` function is the natural place for assertions.

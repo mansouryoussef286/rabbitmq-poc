@@ -67,5 +67,27 @@ export class RabbitMQService {
 		console.log('🎉 RabbitMQ setup complete');
 	}
 
-	// move the emitting logic here now
+	private ConnectionCompleted$() {
+		return this.rabbit.ConnectionCompleted$;
+	}
+
+	getPublishChannelWrapper(): any {
+		return this.rabbit.getPublishChannelWrapper();
+	}
+
+	async createandGetChannelWrapper(
+		consumerName: string,
+		prefetchCount?: number,
+	): Promise<any> {
+		return this.rabbit.createandGetChannelWrapper(
+			consumerName,
+			prefetchCount,
+		);
+	}
+
+	WaitForConnectionAndRun(callback: () => void) {
+		this.ConnectionCompleted$().subscribe((connected: boolean) => {
+			if (connected) callback();
+		});
+	}
 }

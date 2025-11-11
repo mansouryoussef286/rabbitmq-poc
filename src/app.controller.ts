@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
-import { NotificationService } from './Publishers/notification.service';
-import { ConsumerService } from './Consumers/consumer.service';
+import { NotificationService } from './Rabbitmq/Publishers/notification.service';
+import { ConsumerService } from './Rabbitmq/Consumers/consumer.service';
 
 @Controller()
 export class AppController {
@@ -11,10 +11,10 @@ export class AppController {
 		private readonly consumerService: ConsumerService,
 	) {}
 
-	@Get()
-	getHello(): string {
-		return this.appService.getHello();
-	}
+	// @Get()
+	// getHello(): string {
+	// 	return this.appService.getHello();
+	// }
 
 	// send email publish
 	@Get('user-signup')
@@ -44,10 +44,8 @@ export class AppController {
 		return 'System log sent';
 	}
 
-	// start listening
-	@Get('start-listening')
-	async startListening(): Promise<string> {
-		await this.consumerService.StartListening();
-		return 'Started listening';
+	@Get('toggle-listening')
+	async toggleListening(): Promise<string> {
+		return await this.consumerService.ToggleListening();
 	}
 }

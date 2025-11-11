@@ -10,7 +10,7 @@ export class NotificationService {
 	}
 
 	async sendUserSignupNotification(userEmail: string) {
-		const channelWrapper = this.rabbit.getChannelWrapper();
+		const channelWrapper = this.rabbit.getPublishChannelWrapper();
 		const messagePayload = {
 			email: userEmail,
 			timestamp: new Date().toISOString(),
@@ -32,7 +32,7 @@ export class NotificationService {
 	}
 
 	async sendOrderShippedNotification(orderId: string, userEmail: string) {
-		const channelWrapper = this.rabbit.getChannelWrapper();
+		const channelWrapper = this.rabbit.getPublishChannelWrapper();
 		const messagePayload = {
 			orderId,
 			email: userEmail,
@@ -54,7 +54,7 @@ export class NotificationService {
 	}
 
 	async sendSystemLog(message: string) {
-		const channelWrapper = this.rabbit.getChannelWrapper();
+		const channelWrapper = this.rabbit.getPublishChannelWrapper();
 		const messagePayload = {
 			message,
 			timestamp: new Date().toISOString(),
