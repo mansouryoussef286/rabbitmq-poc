@@ -1,7 +1,6 @@
 import { RabbitMQService } from '@App/Rabbitmq/rabbitmq.service';
 import { RabbitMQSetup } from '@App/Rabbitmq/rabbitmq.setup';
 import { Injectable } from '@nestjs/common';
-
 @Injectable()
 export class NotificationService {
 	private rabbit: RabbitMQSetup;
@@ -11,29 +10,67 @@ export class NotificationService {
 	}
 
 	async sendUserSignupNotification(userEmail: string) {
-		await this.rabbit.channel.publish(
-			'app.notifications', // exchange
-			'user.signup', // routing key
-			Buffer.from(JSON.stringify({ email: userEmail })),
-			{ persistent: true }, // <── THIS makes the message survive restarts
-		);
+		const channelWrapper = this.rabbit.getChannelWrapper();
+		const messagePayload = {
+			email: userEmail,
+			timestamp: new Date().toISOString(),
+		};
+
+		try {
+			await channelWrapper.publish(
+				'app.notifications', // exchange
+				'user.signup', // routing key
+				messagePayload, // <--- Pass object directly (amqp-connection-manager handles JSON.stringify + Buffer)
+				{ persistent: true },
+			);
+
+			console.log('✅ USER SIGN-UP Message confirmed by RabbitMQ');
+		} catch (err) {
+			console.error('❌ Message failed or confirmation timed out:', err);
+			throw err; // Re-throw to handle it in the calling function
+		}
 	}
 
 	async sendOrderShippedNotification(orderId: string, userEmail: string) {
-		await this.rabbit.channel.publish(
-			'app.notifications', // exchange
-			'order.shipped', // routing key
-			Buffer.from(JSON.stringify({ orderId, email: userEmail })),
-			{ persistent: true },
-		);
+		const channelWrapper = this.rabbit.getChannelWrapper();
+		const messagePayload = {
+			orderId,
+			email: userEmail,
+			timestamp: new Date().toISOString(),
+		};
+
+		try {
+			await channelWrapper.publish(
+				'app.notifications', // exchange
+				'order.shipped', // routing key
+				messagePayload, // <--- Pass object directly (amqp-connection-manager handles JSON.stringify + Buffer)
+				{ persistent: true },
+			);
+			console.log('✅ ORDER SHIPPED Message confirmed by RabbitMQ');
+		} catch (err) {
+			console.error('❌ Message failed or confirmation timed out:', err);
+			throw err;
+		}
 	}
 
 	async sendSystemLog(message: string) {
-		await this.rabbit.channel.publish(
-			'app.logs', // exchange
-			'order.shipped', // routing key
-			Buffer.from(JSON.stringify({ message })),
-			{ persistent: true },
-		);
+		const channelWrapper = this.rabbit.getChannelWrapper();
+		const messagePayload = {
+			message,
+			timestamp: new Date().toISOString(),
+		};
+
+		try {
+			await channelWrapper.publish(
+				'app.logs', // exchange
+				'system.log', // routing key
+				messagePayload, // <--- Pass object directly (amqp-connection-manager handles JSON.stringify + Buffer)
+				{ persistent: true },
+			);
+			console.log('✅ SYSTEM LOG Message confirmed by RabbitMQ');
+		} catch (err) {
+			console.error('❌ Message failed or confirmation timed out:', err);
+			throw err;
+		}
 	}
 }
