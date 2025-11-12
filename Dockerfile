@@ -43,8 +43,9 @@ WORKDIR /usr/src/app
 COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
-# Copy ONLY the compiled code from the builder stage
+# Copy ONLY the compiled code from the builder stage and env file
 COPY --from=builder --chown=nestjs:nodejs /usr/src/app/dist ./dist
+COPY .env.prod /usr/src/app
 
 # Security Step 2: Switch the running container process to the non-root user
 USER nestjs

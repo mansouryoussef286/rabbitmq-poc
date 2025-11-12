@@ -1,14 +1,20 @@
 version: '3.8'
 
 services:
+  rabbitmq:
+    container_name: rabbitmq-dev
+    hostname: rabbitmq_host-dev
+
   nestjs:
     build:
       target: development
+    image: nestjs-api-image-dev:latest #Assigns name to the resulting image
+    container_name: nestjs-dev
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules # Prevents local node_modules from overwriting container's
     ports:
       - "3005:3005"
     command: [ "npm", "run", "start:dev" ]
-    # environment:
-    #   NODE_ENV: development
+    environment:
+      NODE_ENV: development

@@ -46,12 +46,13 @@ networks:
   rabbitmq_net:
     driver: bridge
 
-# to run: docker-compose up {add a service name to only run it}
-# to run with image build: docker-compose up --build
-# to run and make nestjs logs available: docker-compose up --build -d && docker-compose logs -f nestjs
+# to run: 
+#   docker-compose up {add a service name to only run it}
+#   to run with image build: docker-compose up --build
+#   find the api in browser at: http://127.0.0.1:3005/swagger
 
-# find the api in browser at: http://127.0.0.1:3005/swagger
+# run dev containers
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d && docker-compose logs -f nestjs
 
-
-# docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-# docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# run prod containers
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d && docker-compose logs -f nestjs --tail
