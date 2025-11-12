@@ -63,7 +63,7 @@ export class RabbitMQService {
 		await this.rabbit.bindQueue('service.monitoring', 'app.logs');
 		await this.rabbit.bindQueue('dlx.queue', 'app.dlx', 'dlx.events');
 
-		// await this.rabbit.close();
+		this.rabbit.completeConnection();
 		console.log('🎉 RabbitMQ setup complete');
 	}
 

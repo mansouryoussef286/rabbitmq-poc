@@ -3,7 +3,7 @@ import { AmqpConnectionManager, ChannelWrapper } from 'amqp-connection-manager';
 import { ConfirmChannel } from 'amqplib';
 import { Options } from 'amqplib';
 import { Subject } from 'rxjs';
-
+import * as amqplib from 'amqplib';
 // Use a known type for exchange types since amqplib's Options.AssertExchange is a bit verbose
 type ExchangeType = 'topic' | 'fanout' | 'direct' | 'headers';
 
@@ -21,6 +21,7 @@ export class RabbitMQSetup {
 	}
 
 	async connect() {
+		console.log(`Connecting to RabbitMQ at ${this.url}...`);
 		this.connectionManager = amqp.connect(this.url);
 
 		this.connectionManager.on('connect', ({ url }) => {
@@ -36,7 +37,6 @@ export class RabbitMQSetup {
 			confirm: true, // Use a ConfirmChannel, equivalent to createConfirmChannel()
 			setup: async (channel: ConfirmChannel) => {
 				// This setup function runs every time a channel is created (initial connection and reconnections)
-
 				// Apply prefetch logic here
 				// Note: amqplib's prefetch is per-channel, so this is per-ChannelWrapper instance
 				await channel.prefetch(this.prefetchCount, false);
@@ -45,9 +45,15 @@ export class RabbitMQSetup {
 				);
 			},
 		});
+
+		this.channel.on('error', (err) => {
+			console.error('❌ Channel esrror:', err.message);
+		});
 		await this.channel.waitForConnect();
 		console.log(`✅ Initial RabbitMQ Channel is ready.`);
+	}
 
+	completeConnection() {
 		this.ConnectionCompleted$.next(true);
 	}
 
@@ -81,7 +87,7 @@ export class RabbitMQSetup {
 		return newChannel;
 	}
 
-	// The `setup` function is the natural place for assertions.
+	//#region The `setup` function is the natural place for assertions.
 	// We use a custom method to add the setup logic to the channel wrapper.
 	// so that these function run whenever the channel is (re)created.
 	async createExchange(exchangeName: string, type: ExchangeType) {
@@ -114,4 +120,5 @@ export class RabbitMQSetup {
 		await this.connectionManager.close();
 		console.log('🛑 RabbitMQ connection closed.');
 	}
+	//#endregion
 }

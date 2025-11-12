@@ -19,8 +19,8 @@ async function bootstrap() {
 
 	//#region Swagger
 	const swaggerConfig = new DocumentBuilder()
-		.setTitle('Chehabi Academy Api')
-		.setDescription('The Chehabi Academy API documentation')
+		.setTitle('Rabbitmq API')
+		.setDescription('The Rabbitmq API documentation')
 		.setVersion('1.0')
 		.addBearerAuth()
 		.build();
@@ -34,7 +34,7 @@ async function bootstrap() {
 		origin: '*',
 	});
 
-	await app.listen(process.env.PORT || 3005).then(async () => {
+	await app.listen(process.env.PORT || 3005, '0.0.0.0').then(async () => {
 		const url = await app.getUrl();
 		console.log(`ENV= ${process.env.NODE_ENV}`);
 		console.log(`Server  running on ${url}`);

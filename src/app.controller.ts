@@ -11,10 +11,10 @@ export class AppController {
 		private readonly consumerService: ConsumerService,
 	) {}
 
-	// @Get()
-	// getHello(): string {
-	// 	return this.appService.getHello();
-	// }
+	@Get()
+	getHello(): string {
+		return this.appService.getHello();
+	}
 
 	// send email publish
 	@Get('user-signup')
