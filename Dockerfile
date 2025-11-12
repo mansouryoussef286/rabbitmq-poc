@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine AS development
 
 WORKDIR /usr/src/app
 
@@ -19,3 +19,35 @@ CMD ["npm", "run", "start:dev"]
 # 	docker build -t your-dockerhub-username/your-api-name:latest .
 # 	then push it:
 # 		docker push your-dockerhub-username/your-api-name:latest
+
+
+
+# ----------------------------------------
+# 2. BUILD STAGE (Compiles the code for the final production image)
+# ----------------------------------------
+FROM development AS builder
+
+RUN npm run build
+
+
+# ----------------------------------------
+# 3. PRODUCTION STAGE (Used by docker-compose.prod.yml)
+# ----------------------------------------
+FROM node:20-alpine AS production
+
+# Security Step 1: Create a non-root user and group
+RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001 -G nodejs
+WORKDIR /usr/src/app
+
+# Copy package.json/lock.json and install ONLY production dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
+
+# Copy ONLY the compiled code from the builder stage
+COPY --from=builder --chown=nestjs:nodejs /usr/src/app/dist ./dist
+
+# Security Step 2: Switch the running container process to the non-root user
+USER nestjs
+
+# The production startup command
+CMD ["node", "dist/main"]

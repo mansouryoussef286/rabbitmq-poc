@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  nestjs:
+    build:
+      target: production
+    expose:
+      - "3000"
+    command: [ "node", "dist/main" ] # Overrides any base or dev command
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    # environment:
+    #   NODE_ENV: production # use Docker Secrets

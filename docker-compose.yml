@@ -20,22 +20,22 @@ services:
       - rabbitmq_net # defined a network for better isolation
 
   nestjs:
-    # 1. Instructs Compose to build the image using the Dockerfile in the current directory
-    build: .
-    # 2. Assigns the name 'nestjs-api-dev' to the resulting image
-    image: nestjs-api-image-dev:latest
+    # build:
+    #   target: development
+    image: nestjs-api-image-dev:latest #Assigns name to the resulting image
     container_name: nestjs-dev
     depends_on:
       - rabbitmq
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
-    # environment: # - RABBITMQ_URL=amqp://user:password@rabbitmq:5672
-    ports:
-      - "3005:3005"
+    # volumes:
+    #   - .:/usr/src/app
+    #   - /usr/src/app/node_modules
+    # environment: 
+    #   RABBITMQ_URL=amqp://user:password@rabbitmq:5672
+    # ports:
+    #   - "3005:3005"
     networks:
       - rabbitmq_net # <-- To explicitly join the network
-    command: [ "npm", "run", "start:dev" ]
+    # command: [ "npm", "run", "start:dev" ]
 
 volumes:
   rabbitmq_data:
@@ -46,8 +46,12 @@ networks:
   rabbitmq_net:
     driver: bridge
 
-# to run: docker-compose up 
+# to run: docker-compose up {add a service name to only run it}
 # to run with image build: docker-compose up --build
 # to run and make nestjs logs available: docker-compose up --build -d && docker-compose logs -f nestjs
 
 # find the api in browser at: http://127.0.0.1:3005/swagger
+
+
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
