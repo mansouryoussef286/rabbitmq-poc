@@ -4,28 +4,32 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: rabbitmq
+    hostname: rabbitmq_host
     ports:
       - "5672:5672" # RabbitMQ message broker port
       - "15672:15672" # Management web UI port
-    environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin
-    # volumes:
-    #   - rabbitmq_data:/var/lib/rabbitmq
+      # environment:
+      # RABBITMQ_DEFAULT_USER: admin
+      # RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      # ⚠️ BIND MOUNT THE CONFIGURATION FILES ⚠️
+      - ./etc/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./etc/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     networks:
-      # defined a network for better isolation
-      - rabbitmq_net
+      - rabbitmq_net # defined a network for better isolation
 
   nestjs:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # 1. Instructs Compose to build the image using the Dockerfile in the current directory
+    build: .
+    # 2. Assigns the name 'nestjs-api-dev' to the resulting image
+    image: nestjs-api-image-dev:latest
     container_name: nestjs-dev
     depends_on:
       - rabbitmq
     volumes:
-      - .:/app
-      - /app/node_modules
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
     # environment: # - RABBITMQ_URL=amqp://user:password@rabbitmq:5672
     ports:
       - "3005:3005"
@@ -33,10 +37,17 @@ services:
       - rabbitmq_net # <-- To explicitly join the network
     command: [ "npm", "run", "start:dev" ]
 
-# volumes:
-#   rabbitmq_data:
+volumes:
+  rabbitmq_data:
+    #to add users and survive container and image deletion, but only keeping naming as it is
 
 
 networks:
   rabbitmq_net:
     driver: bridge
+
+# to run: docker-compose up 
+# to run with image build: docker-compose up --build
+# to run and make nestjs logs available: docker-compose up --build -d && docker-compose logs -f nestjs
+
+# find the api in browser at: http://127.0.0.1:3005/swagger

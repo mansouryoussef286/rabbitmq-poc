@@ -1,18 +1,21 @@
-FROM node:20-alpine as dev
+FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copy only package files first for caching deps
 COPY package*.json ./
 
-# Install all dependencies (including dev)
 RUN npm install
 
-# Copy the rest of the code
 COPY . .
 
-# # Expose NestJS port
-# EXPOSE 3000
+EXPOSE 3000
 
-# # Run in watch mode
-# CMD ["npm", "run", "start"]
+# This typically uses ts-node and a file watcher (like nodemon) for hot-reloading.
+CMD ["npm", "run", "start:dev"]
+
+# to build the image run:
+# 	docker build .
+# for publishing the image to docker hub, first tag it:
+# 	docker build -t your-dockerhub-username/your-api-name:latest .
+# 	then push it:
+# 		docker push your-dockerhub-username/your-api-name:latest
