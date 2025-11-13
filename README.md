@@ -1,116 +1,253 @@
-# rabbitmq-poc
+# 🐰 RabbitMQ Proof of Concept API
 
-A small NestJS proof-of-concept showing how to use RabbitMQ with:
+This project serves as a comprehensive proof of concept for integrating a **NestJS API** with **RabbitMQ**. It demonstrates advanced message brokering patterns, including multiple exchange types, Dead Letter Exchanges (DLX), consumer resilience, and production-ready Docker deployment.
 
-- amqp-connection-manager + amqplib (confirm channels)
-- Topic/fanout/direct exchanges, queue bindings
-- Message TTL and Dead-Letter Exchange (DLX) pattern
+---
 
-## Contents
+<details open>
+<summary><h2>💡 Project Overview</h2></summary>
 
-- `src/Publishers` — services that publish messages (notification examples)
-- `src/Consumers` — consumers for email, push, logs, monitoring, DLX
-- `src/Rabbitmq` — connector + setup utilities (connection, channel wrapper, exchanges/queues)
-- `docker-compose.yml` — optional RabbitMQ for local development
-- `Dockerfile` — (if present) example Dockerfile for containerizing the app
+This application showcases a robust, scalable, and resilient approach to asynchronous communication using RabbitMQ ([**Application flow**](#app-flow)). All core message broker setup (users, exchanges, and queues) is managed declaratively via mounted configuration files (`definitions.json`), ensuring persistence and consistency across all environments upon creation.
 
-## Features
+The project is structured to easily split into separate Publisher and Consumer microservices for a future deployment, while currently consolidating the logic within a single NestJS application for simplified development and testing.
 
-- Confirmed publishing (persistent messages + publisher confirms)
-- Per-queue TTL with DLX routing (x-message-ttl, x-dead-letter-exchange)
-- Raw-channel consumers registered with `channelWrapper.addSetup(...)` so `channel.ack()` / `channel.nack()` are executed on the underlying amqplib channel (works across reconnects)
-- Consumer `consumerTag` capture and `close()` helper to cancel consumers cleanly
-- Example bindings: `app.notifications` (topic), `app.logs` (fanout), `app.dlx` (direct)
+</details>
 
-## Quickstart (local)
+---
 
-Prerequisites:
+<details open>
+<summary><h2>✨ Features</h2></summary>
 
-- Node.js (recommended 18+)
-- npm or yarn
-- RabbitMQ (locally or remote). The project includes `docker-compose.yml` that can launch RabbitMQ + the management UI.
+* **Advanced Messaging Patterns:** Implements Fanout, Direct, and Topic exchanges with appropriate queue bindings.
+* **Message Resilience:** Includes **Dead Letter Exchanges (DLX)** to automatically handle unconsumed, rejected, or expired messages, preventing data loss.
+* **High Availability:** Utilizes **Quorum Queues** as the default queue type to ensure high availability and data safety through replication across multiple RabbitMQ nodes, automatically surviving node failures.
+* **Consumer Optimization:** **Prefetch limits** are added to consumers to prevent heavy consumers from monopolizing resources, ensuring fair load distribution across worker services.
+* **Reliable Connections:** Utilizes `amqplib` with `amqp-connection-manager` for automatic and robust connection/channel restoration after network interruptions.
+* **Asynchronous Flow Control:** Producers use **await acknowledgments** to ensure messages are safely delivered to the broker before continuing the application flow.
+* **Reactive Programming:** Uses **RxJS** to manage and sequence channel creation following a successful connection establishment.
+* **Resource Management:** Implements **connection per consumer logic**, where connections and channels are opened and closed as needed to manage resources efficiently.
+* **Declarative Configuration:** RabbitMQ users and permissions are set on startup using mounted `definitions.json` and `rabbitmq.conf` files.
+* **Dockerized Environments:** Includes separate production and development configurations using multiple `docker-compose` files.
 
-Start RabbitMQ locally with Docker Compose (optional):
+</details>
 
-```bash
-docker compose up -d
-# open http://localhost:15672 (guest/guest) to see exchanges/queues
+---
+
+<details>
+<summary><h2>📐 System Architecture</h2></summary>
+
+1.  **NestJS API (Publisher/Producer):** Generates messages and sends them to the appropriate RabbitMQ **Exchange**.
+2.  **RabbitMQ Broker:** Routes messages based on the exchange type and routing key to bound **Queues**.
+3.  **NestJS API (Consumer):** Listens to one or more Queues.
+4.  **DLX Flow:** If a message is rejected, exceeds the retry limit, or expires, it is routed to the configured Dead Letter Exchange (DLX) for later inspection and manual processing.
+
+</details>
+
+---
+<details >
+<summary><h2>📂 Project Structure</h2></summary>
+
+The project uses a standard NestJS structure augmented with dedicated configuration files for RabbitMQ and Docker.
+
 ```
 
-Install and run the app:
+.
+├── dist/                             \# Compiled JavaScript files (used in prod image)
+├── etc/rabbitmq/                     \# RabbitMQ Configuration files (mounted via Docker)
+│   ├── definitions.json              \# Declarative users, vhosts, exchanges, and queues
+│   └── rabbitmq.conf                 \# Config file pointing to definitions.json
+├── node\_modules/                     \# Dependencies
+├── src/
+│   ├── Rabbitmq/                     \# Dedicated RabbitMQ Module
+│   │   ├── Consumers/                \# Handles listening and processing messages
+│   │   ├── Publishers/               \# Handles sending messages
+│   │   ├── rabbitmq.config.ts        \# Dynamic config variables for RabbitMQ connections
+│   │   ├── rabbitmq.module.ts        \# Module setup and providers
+│   │   ├── rabbitmq.service.ts       \# Core logic for connection management, channel creation, and messaging
+│   │   ├── rabbitmq.setup.ts         \# Logic for declaring exchanges, queues, and bindings
+│   │   └── ...
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   └── main.ts
+├── test/
+├── .dockerignore                     \# Files to ignore during Docker build (e.g., node\_modules, dist)
+├── .env.dev                          \# Environment variables for local development
+├── .env.prod                         \# Environment variables for production
+├── .gitignore
+├── .prettierrc
+├── docker-compose.dev.yml            \# Docker Compose overrides for development
+├── docker-compose.prod.yml           \# Docker Compose overrides for production
+├── docker-compose.yml                \# Base/Common Docker Compose file
+└── Dockerfile                        \# Multi-stage build file for both dev and prod images
+
+````
+
+</details>
+
+---
+<details>
+<summary><h2> 🏁 Getting Started</></summary>
+
+### Prerequisites
+
+* Docker and Docker Compose (v2)
+
+### Running in Development Mode
+
 
 ```bash
-npm install
-npm run start:dev
-```
+# 1. Build and start the services using the base and development compose files
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
-Environment variables
+# 2. Access the API
+# API: http://localhost:3000
+# RabbitMQ Management UI: http://localhost:15672 (Credentials from definitions.json)
+````
 
-- `RABBITMQ_URL` — connection URL (e.g. `amqp://guest:guest@localhost:5672`). If not set, the code reads an empty string; configure appropriately for your environment.
-- `RABBITMQ_PREFETCH` — per-channel prefetch (defaults to `5`)
+### Running in Production Mode
 
-## How the pieces work
-
-- The `RabbitMQSetup` class wraps `amqp-connection-manager` and creates a confirmed `ChannelWrapper`. It asserts exchanges/queues and binds them in `RabbitMQService.bootstrap()`.
-- Publishers call `channelWrapper.publish(...)` — the wrapper handles JSON serialization and confirm handling.
-- Consumers use `channelWrapper.addSetup(async (channel) => { channel.consume(...) })` so handlers call `channel.ack(msg)` or `channel.nack(msg, false, false)` directly on the `amqplib` channel. This ensures acks are executed on the real channel and survive reconnects.
-
-## Example: Why a message may appear in DLX after being acked
-
-If a message is published to an exchange with multiple queues bound (for example `notifications.email` and `notifications.push` bound to the same routing key), RabbitMQ places one copy into each bound queue. A consumer ack only removes the message copy from the queue it consumed from — other copies remain in their queues. If those other queues have a message TTL configured (e.g. `x-message-ttl`) and a DLX, the copies will dead-letter after the TTL expires and appear on the DLX. This is expected behavior and not a failure of `ack`.
-
-If you want a message to be processed only once, route to a single queue (or use competing consumers) instead of binding multiple queues for the same processing step.
-
-## Consumers in this project
-
-- `EmailConsumer` — listens on `notifications.email` and acks/nacks messages.
-- `PushConsumer` — listens on `notifications.push`.
-- `LogConsumer` — listens on `service.logger`.
-- `MonitorConsumer` — listens on `service.monitoring`.
-- `DLXConsumer` — listens on `dlx.queue` and logs dead-lettered messages. It also shows how to inspect `x-death` headers if you need to trace origin queues.
-
-All consumers follow the same pattern: they register a raw `channel.consume(...)` inside `channelWrapper.addSetup(...)`, capture the returned `consumerTag`, and expose a `close()` method that cancels the consumer via `channelWrapper.cancel(consumerTag)`.
-
-## Inspecting dead-letter info
-
-When a message is dead-lettered, RabbitMQ adds an `x-death` header to `msg.properties.headers`. The `x-death` array includes objects with fields such as `queue`, `reason` (e.g. `expired`), and `count`. The `DLXConsumer` can log `msg.properties.headers['x-death']` to identify which queue dead-lettered the message and why.
-
-## Running tests
-
-This repository uses Jest for tests (if present). Run:
+This uses the multi-stage production build target and sets resource limits.
 
 ```bash
-npm test
+# 1. Build and start the services using the production compose files
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
+</details>
 
-## Docker
 
-This project includes `docker-compose.yml` that can run a RabbitMQ server with the management plugin. Use the compose file for local testing:
+-----
 
-```bash
-docker compose up -d
-```
 
-If you want to containerize the app, build the image and run it linked to RabbitMQ. (See `Dockerfile` if present.)
+<details>
+<summary> <h2>⚙️ Configuration</h2></summary>
 
-## Troubleshooting
+  * **RabbitMQ Users:** Users with appropriate privileges for API access are defined in `./etc/rabbitmq/definitions.json`.
+  * **Message Broker Setup:** All Exchanges (`fanout`, `direct`, `topic`) and Queues (including DLX bindings) are declared within the **`definitions.json`** file and loaded at RabbitMQ startup.
+  * **Environment Variables:**
+      * **Development:** Loaded from `.env.dev`.
+      * **Production:** Loaded from `.env.prod`. **Note:** Actual production secrets should be injected via Docker/CI/CD secrets manager, overriding the values in `.env.prod` or at least ignore the file from git.
 
-- Messages reappear or are sent to DLX:
-    - Check whether the message was published to multiple queues (multiple bindings). Ack only clears the copy from the queue it was delivered from.
-    - Check `x-death` headers on DLX messages to find the originating queue and reason.
-- Acks not having effect or consumers re-delivering on reconnect:
-    - Ensure your consumer calls `channel.ack(msg)` on the raw amqplib `channel` (inside `addSetup`) rather than accidentally calling ack on the wrapper in some patterns.
-    - Use `{ noAck: false }` when consuming so RabbitMQ expects manual ack.
-- Consumer doesn't receive messages after reconnect:
-    - Confirm the consumer is registered in the `addSetup` callback so it is re-established on reconnect.
+</details>
 
-## Contributing
+-----
 
-Contributions are welcome. Small suggestions:
+<details open>
+<summary> <h2>🔄 Message Flow Examples</h2></summary>
 
-- Keep consumer patterns consistent — prefer `channelWrapper.addSetup` with raw `channel.ack()`/`channel.nack()`.
-- Add tests for publishers (happy path + failure) and consumers (processing and nack->DLX behavior).
+This section details how messages are routed through the RabbitMQ host based on the exchange type and the bindings defined in the system. The flow demonstrates **broadcast**, **pattern-based**, and **dead-letter** routing as per the below Diagram.
+  <img style="max-height:500px;" src="/ReadmeAssets/Rabbitmq flow.png" alt="project architecture and messages flow" id="app-flow">
 
-## License
+### 1. Fanout Exchange (`app.logs`)
 
-This project is provided as-is. See `LICENSE` at the repository root.
+* **Purpose:** Used for **broadcast logging** where every consumer interested in all log messages receives a copy.
+* **Routing Mechanism:** Messages are routed to **all queues** bound to this exchange, regardless of any routing key provided by the producer. It's a "fire-and-forget" broadcast.
+* **Flow Illustrated:**
+    * The Producer App pushes a message to the `app.logs` Fanout Exchange.
+    * This message is simultaneously duplicated and sent to all bound queues:
+        * `service.monitoring` queue.
+        * `service.logger` queue.
+    * Each queue has its own dedicated consumer (e.g., `monitor consumer` and `service logger consumer`), ensuring multiple logging/monitoring systems receive the same event.
+
+### 2. Topic Exchange (`app.notifications`)
+
+* **Purpose:** Used for flexible, **pattern-based routing** for notifications, allowing consumers to subscribe to specific categories or hierarchies of events.
+* **Routing Mechanism:** Messages require a **routing key** (e.g., `order.shipped`, `user.created`). Queues bind to the exchange using patterns that can include wildcards (`*` for one word, `#` for zero or more words).
+* **Flow Illustrated:**
+    * **Queue: `notifications.email`**
+        * **Binding:** `user.*` (Matches one word after `user.`).
+        * **Receives:** Messages with routing keys like `user.created` or `user.updated`.
+    * **Queue: `notifications.push`**
+        * **Binding:** `user.*` (Also matches one word after `user.`).
+        * **Receives:** Messages with routing keys like `user.created` or `user.updated`.
+        * *Note: Both email and push queues receive user-related events, enabling parallel delivery via different channels.*
+    * **Queue: `order.shipped`**
+        * **Binding:** `order.shipped` (Exact match).
+        * **Receives:** Messages specifically related to shipped orders.
+
+### 3. Direct Exchange (`app.dlx`) - Dead Letter Flow
+
+* **Purpose:** This exchange acts as the **Dead Letter Exchange (DLX)** destination. It captures messages that failed processing in the primary queues.
+* **Routing Mechanism:** Messages are automatically routed here from primary queues (like `notifications.email`) upon failure based on configuration embedded in the primary queue itself.
+* **Flow Illustrated:**
+    * A message is sent to a primary queue (e.g., `notifications.email`).
+    * The corresponding consumer (`email consumer`) rejects the message (due to an error, failure to acknowledge, or message expiration/TTL).
+    * The message is automatically rerouted by RabbitMQ to the configured **Dead Letter Exchange**, which in this diagram is `app.dlx`.
+    * The `app.dlx` exchange routes the message to the **`dlx.queue`**.
+    * The **`Dead Letter consumer`** then pulls the failed message from `dlx.queue` for inspection, manual retry, or logging, ensuring no data is lost.
+
+</details>
+---
+
+<details>
+<summary> <h2>🛡️ Resilience & Scalability
+</h2></summary>
+
+  * **Dead Letter Exchange (DLX):** Unconsumed, unacknowledged, or expired messages are routed to a dedicated DLX queue, ensuring **zero message loss**.
+  * **Connection Management:** `amqp-connection-manager` automatically handles reconnections and recreates channels/consumers upon network failures.
+  * **Producer Reliability:** Await/blocking acknowledgment (`channel.waitForConfirms`) is used to ensure the broker has confirmed receipt before the producer assumes success.
+  * **Fair Load Distribution:** Consumer services use **prefetch limits** to ensure they only pull a manageable number of messages at a time, preventing worker overload and ensuring high availability across consumer instances.
+
+</details>
+
+-----
+
+<details>
+<summary> <h2>🧪 Testing</h2></summary>
+
+  * RabbitMQ connectivity can be verified manually by accessing the Management UI on port `15672` using accounts defined in `./etc/rabbitmq/definitions.json`.
+
+</details>
+
+-----
+
+<details>
+<summary> <h2>🐳 Docker Setup Details</h2></summary>
+
+  * **Configuration Files:** Uses three compose files (`.yml`, `.dev.yml`, `.prod.yml`) for clean environment separation.
+  * **Multi-Stage Dockerfile:** Includes a **`development`** stage (for volume mounting/hot-reloading) and an optimized **`production`** stage (non-root user, minimal size, compiled JS execution).
+  * **Persistence:** A named volume (`rabbitmq_data`) is mounted to `/var/lib/rabbitmq` to guarantee the survival of user data, vhosts, and queue definitions across container restarts/rebuilds.
+  * **RabbitMQ Setup:** Uses bind mounts to load `./etc/rabbitmq/rabbitmq.conf` and `./etc/rabbitmq/definitions.json` as **read-only (`:ro`)** configuration for security.
+
+</details>
+
+-----
+
+<details>
+<summary> <h2>💻 Technologies Used</h2></summary>
+
+  * **Backend:** NestJS
+  * **Messaging:** RabbitMQ
+  * **Messaging Library:** `amqplib`
+  * **Connection Resilience:** `amqp-connection-manager`
+  * **Reactive Programming:** RxJS
+  * **Containerization:** Docker & Docker Compose
+  * **Language:** TypeScript
+  * **Package Manager:** npm
+
+</details>
+
+-----
+
+<details>
+<summary> <h2>➡️ Future Improvements</h2></summary>
+
+  * **Microservice Splitting:** Separate the Publishers (API Gateway) and Consumers (Worker Services) into dedicated NestJS microservices.
+  * **Deployment:** Integrate a robust CI/CD pipeline and deploy using Kubernetes.
+  * **Tracing:** Implement distributed tracing (e.g., OpenTelemetry) to monitor message flow latency across services.
+  * **Security:** Integrate with Docker Secrets or a dedicated secrets manager for all production credentials.
+
+</details>
+
+-----
+
+<details>
+<summary> <h2>🔗 Resources & References</h2></summary>
+
+  * [NestJS Documentation](https://docs.nestjs.com/)
+  * [RabbitMQ Documentation](https://www.rabbitmq.com/docs)
+  * [amqp-connection-manager GitHub](https://github.com/jwalton/node-amqp-connection-manager)
+
+</details>
+
+-----
