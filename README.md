@@ -101,7 +101,7 @@ The project uses a standard NestJS structure augmented with dedicated configurat
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 # 2. Access the API
-# API: http://localhost:3000
+# API: http://127.0.0.1:3005
 # RabbitMQ Management UI: http://localhost:15672 (Credentials from definitions.json)
 ````
 
@@ -112,6 +112,10 @@ This uses the multi-stage production build target and sets resource limits.
 ```bash
 # 1. Build and start the services using the production compose files
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+
+# 2. Access the API
+# API: http://127.0.0.1:3333
+
 ```
 </details>
 
